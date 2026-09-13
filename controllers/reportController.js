@@ -1,7 +1,7 @@
 const SterilizationCycle = require('../models/SterilizationCycle');
 const MaintenanceRecord = require('../models/MaintenanceRecord');
 
-const getOverviewReport = async (req, res) => {
+const generateReport = async (req, res) => {
     try {
         const totalCycles = await SterilizationCycle.countDocuments();
         const passedCycles = await SterilizationCycle.countDocuments({ result: 'PASS' });
@@ -23,4 +23,4 @@ const getOverviewReport = async (req, res) => {
     }
 };
 
-module.exports = { getOverviewReport };
+module.exports = { generateReport };
