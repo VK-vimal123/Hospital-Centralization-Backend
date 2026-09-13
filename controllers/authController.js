@@ -173,8 +173,58 @@ const getUserProfile = async (req, res) => {
 };
 
 const updateUserProfile = async (req, res) => {
-    // Basic profile update
-    res.json({ success: true, message: 'Profile updated mock' });
+    try {
+        const userId = req.user?.id || req.user?._id;
+        const { name, email, password } = req.body;
+        const updateData = {};
+        if (name) updateData.name = name;
+        if (email) updateData.email = email;
+        if (password) {
+            const salt = await bcrypt.genSalt(10);
+            updateData.password = await bcrypt.hash(password, salt);
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(userId, updateData, { new: true }).select('-password');
+        if (!updatedUser) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        res.json({ success: true, message: 'Profile updated successfully', user: updatedUser });
+    } catch (error) {
+        console.error('updateUserProfile error:', error);
+        res.status(500).json({ success: false, message: 'Server error updating profile' });
+    }
+};
+
+const deleteUserProfile = async (req, res) => {
+    try {
+        const userId = req.user?.id || req.user?._id;
+        if (!userId) {
+            return res.status(400).json({ success: false, message: 'User ID missing' });
+        }
+
+        const user = await User.findByIdAndDelete(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        try {
+            const AuditLog = require('../models/AuditLog');
+            await AuditLog.create({
+                user_id: userId,
+                module: 'USER',
+                action: `User deleted their account: ${user.name} (${user.email})`,
+                record_id: userId
+            });
+        } catch (auditErr) {
+            console.error('AuditLog error:', auditErr);
+        }
+
+        res.json({ success: true, message: 'Profile deleted successfully' });
+    } catch (error) {
+        console.error('deleteUserProfile error:', error);
+        res.status(500).json({ success: false, message: 'Server error deleting profile' });
+    }
 };
 
 const { OAuth2Client } = require('google-auth-library');
@@ -226,4 +276,4 @@ const googleLogin = async (req, res) => {
     }
 };
 
-module.exports = { registerUser, loginUser, getUserProfile, updateUserProfile, googleLogin };
+module.exports = { registerUser, loginUser, getUserProfile, updateUserProfile, deleteUserProfile, googleLogin };
