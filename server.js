@@ -32,6 +32,14 @@ app.use('/api/notifications', require('./routes/notificationRoutes'));
 app.use('/api/audit-logs', require('./routes/auditLogRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
 
+app.get('/', (req, res) => {
+    res.send('<h1>Hospital Sterilization API Backend</h1><p>The backend is running successfully on Vercel. Please access the API via /api/* routes.</p>');
+});
+
+app.get('/api', (req, res) => {
+    res.json({ success: true, message: 'Hospital Sterilization API is active. Access specific endpoints via /api/[resource]' });
+});
+
 app.get('/api/health', (req, res) => {
     res.json({ success: true, message: 'API is running' });
 });
@@ -53,3 +61,4 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 module.exports = app;
+// trigger restart
