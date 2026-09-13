@@ -202,11 +202,11 @@ const googleLogin = async (req, res) => {
                 email,
                 password: 'google_oauth_dummy',
                 role: 'Sterilization Staff', // Default role
-                status: 'Active'
+                status: 'active'
             });
         }
 
-        if (user.status && user.status.toLowerCase() !== 'active') {
+        if (user.status && user.status !== 'active') {
             return res.status(401).json({ success: false, message: 'Account is inactive' });
         }
 
