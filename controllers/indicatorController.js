@@ -11,4 +11,14 @@ const getIndicators = async (req, res) => {
     }
 };
 
-module.exports = { getIndicators };
+const addIndicator = async (req, res) => {
+    try {
+        const { type, result, cycle_id, notes } = req.body;
+        const newInd = await Indicator.create({ type, result, cycle_id, notes, recorded_by: req.user.id });
+        res.json({ success: true, id: newInd._id });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+module.exports = { getIndicators, addIndicator };

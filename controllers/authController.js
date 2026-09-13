@@ -177,4 +177,53 @@ const updateUserProfile = async (req, res) => {
     res.json({ success: true, message: 'Profile updated mock' });
 };
 
-module.exports = { registerUser, loginUser, getUserProfile, updateUserProfile };
+const { OAuth2Client } = require('google-auth-library');
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+const googleLogin = async (req, res) => {
+    try {
+        const { token } = req.body;
+        if (!token) return res.status(400).json({ success: false, message: 'No token provided' });
+
+        const ticket = await client.verifyIdToken({
+            idToken: token,
+            audience: process.env.GOOGLE_CLIENT_ID
+        });
+        
+        const payload = ticket.getPayload();
+        const email = payload.email;
+        const name = payload.name;
+
+        let user = await User.findOne({ email });
+
+        if (!user) {
+            user = await User.create({
+                name,
+                email,
+                password: 'google_oauth_dummy',
+                role: 'Sterilization Staff', // Default role
+                status: 'Active'
+            });
+        }
+
+        if (user.status && user.status.toLowerCase() !== 'active') {
+            return res.status(401).json({ success: false, message: 'Account is inactive' });
+        }
+
+        res.json({
+            success: true,
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                token: generateToken(user._id)
+            }
+        });
+    } catch (error) {
+        console.error('Google verification error:', error);
+        res.status(401).json({ success: false, message: 'Invalid Google token' });
+    }
+};
+
+module.exports = { registerUser, loginUser, getUserProfile, updateUserProfile, googleLogin };

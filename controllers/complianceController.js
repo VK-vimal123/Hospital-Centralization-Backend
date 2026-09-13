@@ -1,119 +1,70 @@
-const ComplianceRule = require('../models/ComplianceRule');
+const CycleProfile = require('../models/CycleProfile');
 const SterilizationCycle = require('../models/SterilizationCycle');
+const Equipment = require('../models/Equipment');
 
-const getComplianceRules = async (req, res) => {
+const getProfiles = async (req, res) => {
     try {
-        const rules = await ComplianceRule.find().lean();
-        res.json({ success: true, data: rules.map(r => ({ ...r, id: r._id })) });
+        const profiles = await CycleProfile.find().lean();
+        res.json(profiles.map(p => ({ ...p, id: p._id })));
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
 
-const getComplianceRuleById = async (req, res) => {
+const getComplianceSummary = async (req, res) => {
     try {
-        const rule = await ComplianceRule.findById(req.params.id).lean();
-        if (!rule) return res.status(404).json({ success: false, message: 'Rule not found' });
-        res.json({ success: true, data: { ...rule, id: rule._id } });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-};
-
-const createComplianceRule = async (req, res) => {
-    try {
-        const { cycle_type, equipment_type, min_temperature, max_temperature, min_pressure, max_pressure, min_exposure_time, max_exposure_time } = req.body;
-        const rule = await ComplianceRule.create({
-            cycle_type, equipment_type, min_temperature, max_temperature, min_pressure, max_pressure, min_exposure_time, max_exposure_time
+        const totalCycles = await SterilizationCycle.countDocuments();
+        const passedCycles = await SterilizationCycle.countDocuments({ result: 'PASS' });
+        
+        const complianceRate = totalCycles > 0 ? ((passedCycles / totalCycles) * 100).toFixed(1) : 100;
+        
+        res.json({
+            overall_compliance: complianceRate,
+            total_checks: totalCycles,
+            passed_checks: passedCycles,
+            failed_checks: totalCycles - passedCycles
         });
-        res.status(201).json({ success: true, id: rule._id });
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
 
-const updateComplianceRule = async (req, res) => {
+const getEquipmentCompliance = async (req, res) => {
     try {
-        const { cycle_type, equipment_type, min_temperature, max_temperature, min_pressure, max_pressure, min_exposure_time, max_exposure_time } = req.body;
-        const rule = await ComplianceRule.findByIdAndUpdate(req.params.id, {
-            cycle_type, equipment_type, min_temperature, max_temperature, min_pressure, max_pressure, min_exposure_time, max_exposure_time
-        });
-        if (!rule) return res.status(404).json({ success: false, message: 'Rule not found' });
-        res.json({ success: true });
+        const equipment = await Equipment.find().lean();
+        const equipmentCompliance = [];
+
+        for (const eq of equipment) {
+            const cycles = await SterilizationCycle.find({ equipment_id: eq._id }).lean();
+            const total = cycles.length;
+            const passed = cycles.filter(c => c.result === 'PASS').length;
+            const rate = total > 0 ? ((passed / total) * 100).toFixed(1) : 100;
+
+            equipmentCompliance.push({
+                equipment_name: eq.name,
+                eq_code: eq.equipment_id,
+                compliance_score: rate,
+                total_cycles: total,
+                failures: total - passed
+            });
+        }
+        
+        res.json(equipmentCompliance);
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
 
-const deleteComplianceRule = async (req, res) => {
-    try {
-        const rule = await ComplianceRule.findByIdAndDelete(req.params.id);
-        if (!rule) return res.status(404).json({ success: false, message: 'Rule not found' });
-        res.json({ success: true });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-};
-
-const getComplianceReport = async (req, res) => {
-    try {
-        const cycles = await SterilizationCycle.find()
-            .populate('equipment_id', 'name equipment_id')
-            .populate('operator_id', 'name')
-            .sort({ createdAt: -1 })
-            .lean();
-
-        const formatted = cycles.map(c => ({
-            id: c._id,
-            cycle_id: c.batch_number,
-            equipment_name: c.equipment_id ? c.equipment_id.name : 'Unknown',
-            operator_name: c.operator_id ? c.operator_id.name : 'Unknown',
-            cycle_type: c.cycle_type,
-            date: c.createdAt,
-            status: c.result === 'PASS' ? 'Compliant' : 'Non-Compliant',
-            details: c.failure_reason || 'Passed all parameters'
-        }));
-        res.json({ success: true, data: formatted });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-};
-
-const getNonCompliantCycles = async (req, res) => {
-    try {
-        const cycles = await SterilizationCycle.find({ result: 'FAIL' })
-            .populate('equipment_id', 'name equipment_id')
-            .populate('operator_id', 'name')
-            .sort({ createdAt: -1 })
-            .lean();
-        const formatted = cycles.map(c => ({
-            id: c._id,
-            cycle_id: c.batch_number,
-            equipment_name: c.equipment_id ? c.equipment_id.name : 'Unknown',
-            operator_name: c.operator_id ? c.operator_id.name : 'Unknown',
-            cycle_type: c.cycle_type,
-            date: c.createdAt,
-            details: c.failure_reason || 'Failed parameters'
-        }));
-        res.json({ success: true, data: formatted });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-};
+const checkCompliance = async (req, res) => res.json({ success: true });
+const verifyCycle = async (req, res) => res.json({ success: true });
 
 module.exports = {
-    getComplianceRules,
-    getComplianceRuleById,
-    createComplianceRule,
-    updateComplianceRule,
-    deleteComplianceRule,
-    getComplianceReport,
-    getNonCompliantCycles
+    getProfiles,
+    getComplianceSummary,
+    getEquipmentCompliance,
+    checkCompliance,
+    verifyCycle
 };

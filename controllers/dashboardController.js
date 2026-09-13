@@ -1,8 +1,9 @@
 const Equipment = require('../models/Equipment');
 const SterilizationCycle = require('../models/SterilizationCycle');
 const MaintenanceRecord = require('../models/MaintenanceRecord');
+const Notification = require('../models/Notification');
 
-const getDashboardStats = async (req, res) => {
+const getDashboardSummary = async (req, res) => {
     try {
         const totalEquipment = await Equipment.countDocuments();
         
@@ -28,6 +29,37 @@ const getDashboardStats = async (req, res) => {
         const complianceRate = totalCycles > 0 ? Math.round((passedCycles / totalCycles) * 100) : 100;
         const pendingMaintenance = await MaintenanceRecord.countDocuments({ status: { $in: ['Scheduled', 'Overdue'] } });
         
+        res.json({
+            success: true,
+            data: {
+                totalEquipment,
+                complianceRate,
+                pendingMaintenance,
+                totalCycles
+            }
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+const getRecentCycles = async (req, res) => {
+    try {
+        const recentCycles = await SterilizationCycle.find()
+            .populate('equipment_id', 'name')
+            .sort({ createdAt: -1 })
+            .limit(10)
+            .lean();
+        
+        res.json({ success: true, data: recentCycles });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+const getComplianceChart = async (req, res) => {
+    try {
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         
@@ -48,68 +80,68 @@ const getDashboardStats = async (req, res) => {
             passed: c.passed,
             failed: c.failed
         }));
-
-        res.json({
-            success: true,
-            stats: {
-                totalEquipment,
-                complianceRate,
-                pendingMaintenance,
-                totalCycles
-            },
-            chartData
-        });
+        
+        res.json({ success: true, data: chartData });
     } catch (error) {
-        console.error('getDashboardStats error:', error);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
 
-const getRecentAlerts = async (req, res) => {
+const getMonthlyStats = async (req, res) => {
     try {
-        const failedCycles = await SterilizationCycle.find({ result: 'FAIL' })
-            .populate('equipment_id', 'name')
-            .sort({ createdAt: -1 })
-            .limit(5)
-            .lean();
-            
-        const overdueMaintenance = await MaintenanceRecord.find({ status: 'Overdue' })
-            .populate('equipment_id', 'name')
-            .sort({ service_date: -1 })
-            .limit(5)
-            .lean();
-            
-        const alerts = [];
-        failedCycles.forEach(c => {
-            alerts.push({
-                id: `c_${c._id}`,
-                type: 'Failure',
-                message: `Cycle failed on ${c.equipment_id ? c.equipment_id.name : 'Unknown Equipment'}`,
-                date: c.createdAt,
-                severity: 'critical'
-            });
-        });
-        
-        overdueMaintenance.forEach(m => {
-            alerts.push({
-                id: `m_${m._id}`,
-                type: 'Maintenance',
-                message: `Overdue maintenance on ${m.equipment_id ? m.equipment_id.name : 'Unknown Equipment'}`,
-                date: m.next_due_date || m.service_date,
-                severity: 'warning'
-            });
-        });
-        
-        alerts.sort((a, b) => new Date(b.date) - new Date(a.date));
-        
-        res.json({ success: true, alerts: alerts.slice(0, 5) });
+        res.json({ success: true, data: [] });
     } catch (error) {
-        console.error('getRecentAlerts error:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+const getEquipmentStatusChart = async (req, res) => {
+    try {
+        const active = await Equipment.countDocuments({ status: 'Active' });
+        const inactive = await Equipment.countDocuments({ status: 'Inactive' });
+        const maintenance = await Equipment.countDocuments({ status: 'Maintenance' });
+        
+        res.json({ success: true, data: { active, inactive, maintenance } });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+const getEquipmentUsage = async (req, res) => {
+    try {
+        const usage = await SterilizationCycle.aggregate([
+            {
+                $group: {
+                    _id: "$equipment_id",
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { count: -1 } },
+            { $limit: 5 }
+        ]);
+        
+        // This would ideally map equipment IDs to names, but for now we return counts
+        res.json({ success: true, data: usage });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+const getRecentNotifications = async (req, res) => {
+    try {
+        const notifications = await Notification.find().sort({ createdAt: -1 }).limit(5).lean();
+        res.json({ success: true, data: notifications });
+    } catch (error) {
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
 
 module.exports = {
-    getDashboardStats,
-    getRecentAlerts
+    getDashboardSummary,
+    getRecentCycles,
+    getComplianceChart,
+    getMonthlyStats,
+    getEquipmentStatusChart,
+    getEquipmentUsage,
+    getRecentNotifications
 };
