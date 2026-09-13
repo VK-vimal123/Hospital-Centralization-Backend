@@ -1,0 +1,11 @@
+AggregateError: 
+    at loginUser (D:\Hospital Sterilization\backend\controllers\authController.js:65:34)
+    at Layer.handleRequest (D:\Hospital Sterilization\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\Hospital Sterilization\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\Hospital Sterilization\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\Hospital Sterilization\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\Hospital Sterilization\backend\node_modules\router\lib\layer.js:152:17)
+    at D:\Hospital Sterilization\backend\node_modules\router\index.js:295:15
+    at processParams (D:\Hospital Sterilization\backend\node_modules\router\index.js:582:12)
+    at next (D:\Hospital Sterilization\backend\node_modules\router\index.js:291:5)
+    at Function.handle (D:\Hospital Sterilization\backend\node_modules\router\index.js:186:3)
