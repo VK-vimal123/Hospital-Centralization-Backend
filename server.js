@@ -10,13 +10,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Test DB Connection
-const db = require('./config/db');
-db.query('SELECT 1')
-  .then(() => {
-      console.log('Database connected successfully');
-  })
-  .catch(err => console.error('Database connection failed:', err.message));
+// Connect to Database
+const connectDB = require('./config/db');
+connectDB();
 
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
