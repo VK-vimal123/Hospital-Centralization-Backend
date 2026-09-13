@@ -32,10 +32,24 @@ const getDashboardSummary = async (req, res) => {
         res.json({
             success: true,
             data: {
-                totalEquipment,
-                complianceRate,
-                pendingMaintenance,
-                totalCycles
+                equipment: { 
+                    total: totalEquipment, 
+                    active: await Equipment.countDocuments({ status: 'Active' }), 
+                    inactive: await Equipment.countDocuments({ status: 'Inactive' }), 
+                    under_maintenance: await Equipment.countDocuments({ status: 'Maintenance' }), 
+                    out_of_service: await Equipment.countDocuments({ status: 'Retired' }) 
+                },
+                cycles: { 
+                    total: totalCycles, 
+                    today: totalCycles, // Approximation for now
+                    passed: passedCycles, 
+                    failed: failedCycles 
+                },
+                maintenance: { 
+                    scheduled: pendingMaintenance, 
+                    overdue: await MaintenanceRecord.countDocuments({ status: 'Overdue' }) 
+                },
+                compliance_percentage: complianceRate
             }
         });
     } catch (error) {
@@ -99,9 +113,17 @@ const getEquipmentStatusChart = async (req, res) => {
     try {
         const active = await Equipment.countDocuments({ status: 'Active' });
         const inactive = await Equipment.countDocuments({ status: 'Inactive' });
-        const maintenance = await Equipment.countDocuments({ status: 'Maintenance' });
+        const maintenance = await Equipment.countDocuments({ status: 'Under Maintenance' });
+        const outOfService = await Equipment.countDocuments({ status: 'Out of Service' });
         
-        res.json({ success: true, data: { active, inactive, maintenance } });
+        const data = [
+            { status: 'Active', count: active },
+            { status: 'Inactive', count: inactive },
+            { status: 'Under Maintenance', count: maintenance },
+            { status: 'Out of Service', count: outOfService }
+        ].filter(item => item.count > 0);
+        
+        res.json({ success: true, data });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Server error' });
     }
