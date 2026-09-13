@@ -139,7 +139,7 @@ const getCycles = async (req, res) => {
             operator_name: c.operator_id ? c.operator_id.name : 'Unknown'
         }));
 
-        res.json(formatted);
+        res.json({ success: true, data: formatted });
     } catch (error) {
         console.error('getCycles error:', error);
         res.status(500).json({ success: false, message: 'Server error' });

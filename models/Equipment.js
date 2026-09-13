@@ -9,7 +9,7 @@ const equipmentSchema = new mongoose.Schema({
     serial_number: { type: String },
     location: { type: String },
     installation_date: { type: Date },
-    status: { type: String, enum: ['Active', 'Under Maintenance', 'Out of Service'], default: 'Active' },
+    status: { type: String, enum: ['Active', 'In-Use', 'Under Maintenance', 'Out of Service'], default: 'Active' },
     last_maintenance_date: { type: Date },
     next_maintenance_date: { type: Date }
 }, { timestamps: true });
