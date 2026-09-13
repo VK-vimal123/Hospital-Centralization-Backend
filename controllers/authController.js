@@ -1,4 +1,4 @@
-const db = require('../config/db');
+const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -22,8 +22,8 @@ const registerUser = async (req, res) => {
         }
 
         // Check if user exists
-        const [existing] = await db.query('SELECT email FROM users WHERE email = ?', [email]);
-        if (existing.length > 0) {
+        const existing = await User.findOne({ email });
+        if (existing) {
             return res.status(400).json({ success: false, message: 'User already exists' });
         }
 
@@ -32,19 +32,21 @@ const registerUser = async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, salt);
 
         // Insert user
-        const [result] = await db.query(
-            'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
-            [name, email, hashedPassword, role]
-        );
+        const user = await User.create({
+            name,
+            email,
+            password: hashedPassword,
+            role
+        });
 
         res.status(201).json({
             success: true,
             user: {
-                id: result.insertId,
+                id: user._id,
                 name,
                 email,
                 role,
-                token: generateToken(result.insertId)
+                token: generateToken(user._id)
             }
         });
 
@@ -77,8 +79,7 @@ const loginUser = async (req, res) => {
         let user = null;
         let dbAvailable = true;
         try {
-            const [users] = await db.query('SELECT * FROM users WHERE email = ?', [lookupEmail]);
-            user = users[0];
+            user = await User.findOne({ email: lookupEmail });
         } catch (dbError) {
             console.warn('Database unavailable, falling back to demo mode:', dbError.message);
             dbAvailable = false;
@@ -99,11 +100,11 @@ const loginUser = async (req, res) => {
             return res.json({
                 success: true,
                 user: {
-                    id: user.id,
+                    id: user._id,
                     name: user.name,
                     email: user.email,
                     role: user.role,
-                    token: generateToken(user.id)
+                    token: generateToken(user._id)
                 }
             });
         }
@@ -111,14 +112,15 @@ const loginUser = async (req, res) => {
         if (dbAvailable && !user && password === 'google_oauth_dummy') {
             // Google OAuth — auto-register new user
             try {
-                const [result] = await db.query(
-                    'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
-                    ['Google User', lookupEmail, 'google_dummy', requestedRole]
-                );
-                user = { id: result.insertId, name: 'Google User', email: lookupEmail, role: requestedRole, status: 'Active' };
+                user = await User.create({
+                    name: 'Google User',
+                    email: lookupEmail,
+                    password: 'google_dummy',
+                    role: requestedRole
+                });
                 return res.json({
                     success: true,
-                    user: { ...user, token: generateToken(user.id) }
+                    user: { id: user._id, name: user.name, email: user.email, role: user.role, status: 'Active', token: generateToken(user._id) }
                 });
             } catch (insertErr) {
                 console.error('Google OAuth auto-register failed:', insertErr);
@@ -130,13 +132,12 @@ const loginUser = async (req, res) => {
         }
 
         // ── Demo fallback when database is unavailable ──
-        // Allows the application to function for demonstration purposes
         const demoNames = {
             'Admin': 'System Admin',
             'Sterilization Staff': 'Sterilization Staff',
             'Maintenance Staff': 'Maintenance Tech'
         };
-        const demoId = requestedRole === 'Admin' ? 1 : (requestedRole === 'Maintenance Staff' ? 3 : 2);
+        const demoId = requestedRole === 'Admin' ? "1" : (requestedRole === 'Maintenance Staff' ? "3" : "2");
 
         return res.json({
             success: true,
@@ -158,13 +159,13 @@ const loginUser = async (req, res) => {
 
 const getUserProfile = async (req, res) => {
     try {
-        const [users] = await db.query('SELECT id, name, email, role, status FROM users WHERE id = ?', [req.user.id]);
+        const user = await User.findById(req.user.id).select('id name email role status');
         
-        if (users.length === 0) {
+        if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
         
-        res.json({ success: true, user: users[0] });
+        res.json({ success: true, user: { id: user._id, name: user.name, email: user.email, role: user.role, status: user.status } });
     } catch (error) {
         console.error('Profile Error:', error);
         res.status(500).json({ success: false, message: 'Server error fetching profile' });

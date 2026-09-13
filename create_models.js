@@ -122,5 +122,5 @@ module.exports = mongoose.model('AuditLog', auditLogSchema);
 
 for (const [filename, content] of Object.entries(models)) {
     fs.writeFileSync(path.join(modelsDir, filename), content.trim());
-    console.log(\`Created \${filename}\`);
+    console.log("Created " + filename);
 }
