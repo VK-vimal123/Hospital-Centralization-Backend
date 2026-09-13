@@ -104,7 +104,11 @@ const createEquipment = async (req, res) => {
             user_id: req.user.id, module: 'EQUIPMENT', action: `Added equipment: ${name} (${equipment_id})`, record_id: newEq._id
         });
 
-        await createSystemNotification('Equipment Added', `${name} (${equipment_id}) has been successfully registered.`, 'success');
+        await createSystemNotification(
+            'New Equipment Added',
+            `Equipment "${name}" (${equipment_id}) has been successfully registered in the system.`,
+            'info'
+        );
 
         res.status(201).json({ success: true, id: newEq._id, equipment_id });
     } catch (error) {

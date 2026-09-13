@@ -1,18 +1,22 @@
-const db = require('../config/db');
+const Notification = require('../models/Notification');
 
 /**
  * Creates a system-wide notification.
  * @param {string} title - The notification title
  * @param {string} message - The notification message
- * @param {string} type - The type (e.g., 'INFO', 'ALERT', 'REMINDER')
+ * @param {string} type - The type (e.g., 'info', 'warning', 'critical', 'success')
  */
-const createSystemNotification = async (title, message, type = 'INFO') => {
+const createSystemNotification = async (title, message, type = 'info') => {
     try {
-        await db.query(
-            'INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, ?)',
-            [null, title, message, type]
-        );
-        console.log(`System notification created: ${title}`);
+        const notif = await Notification.create({
+            user_id: null,
+            title,
+            message,
+            type: (type || 'info').toLowerCase(),
+            is_read: false
+        });
+        console.log(`System notification created: ${title} (${notif._id})`);
+        return notif;
     } catch (error) {
         console.error('Failed to create system notification:', error);
     }
